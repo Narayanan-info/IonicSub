@@ -6,7 +6,7 @@
   <br>
 </h1>
 
-<h4 align="center">IonicSub Advanced ( 🔥 ) Powerful Subdomain Fuzzer Suite</h4>
+<h2 align="center">IonicSub Advanced ( 🔥 ) Powerful Subdomain Fuzzer Suite</h2>
 
 This is a Go-based tool designed to automate the process of subdomain enumeration. It integrates multiple popular subdomain enumeration tools and techniques to gather subdomains for a given domain. The tool checks for the presence of required tools, installs them if missing, and then runs them sequentially to collect and consolidate subdomains.
 
