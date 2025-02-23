@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://github.com/Narayanan-info/Redir_X/"><img src="Assets/image-1.png" alt="Assets"></a>
+  <a href="https://github.com/Narayanan-info/IonicSub/"><img src="assets/image-1.png" alt="Assets"></a>
   <br>
   Crlfdir_X
   <br>
