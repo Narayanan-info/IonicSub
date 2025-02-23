@@ -28,7 +28,7 @@ The following tools are required for this script to function but its automatical
 **Clone the Repository:**
 
 ```bash
-  git clone https://github.com/yourusername/subdomain-enum-tool.git
+  git clone https://github.com/Narayanan-info/IonicSub.git
   cd IonicSub
 ```
 
