@@ -139,13 +139,13 @@ func runSubdomainEnum(domain string) {
 
 	// Run all tools (example for one tool, replicate for all)
 	// Run subdomain enumeration tools
-	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder.txt")
-	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass.txt")
-	runTool("assetfinder", "--subs-only", domain, ">", "OUTPUT/assetfinder.txt")
+	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder_output.txt")
+	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass_output.txt")
+	runTool("assetfinder", "--subs-only", domain, ">", "OUTPUT/assetfinder_output.txt")
 
 	// Fetch subdomains from certificate transparency logs
-	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "OUTPUT/crt.txt")
-	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "OUTPUT/certspotter.txt")
+	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "OUTPUT/crt_output.txt")
+	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "OUTPUT/certspotter_output.txt")
 
 	// Brute-force subdomains using massdns
 	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", "https://FUZZ."+domain, "-o", "OUTPUT/fuff_output.txt")
