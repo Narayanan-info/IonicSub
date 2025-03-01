@@ -10,13 +10,10 @@ import (
 // ToolList holds the names of tools required for enumeration
 var tools = []string{
 	"subfinder",
-	"findomain",
 	"amass",
 	"assetfinder",
 	"sublist3r",
 	"jq",
-	"massdns",
-	"altdns",
 	"httpx",
 	"fuff",
 }
