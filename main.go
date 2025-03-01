@@ -10,12 +10,10 @@ import (
 // ToolList holds the names of tools required for enumeration
 var tools = []string{
 	"subfinder",
-	"amass",
 	"assetfinder",
 	"sublist3r",
 	"jq",
 	"httpx",
-	"ffuf",
 }
 
 // Ensure OUTPUT directory exists
@@ -36,18 +34,12 @@ func installTool(tool string) {
 		switch tool {
 		case "subfinder":
 			installSubfinder()
-		case "amass":
-			installAmass()
 		case "assetfinder":
 			installAssetfinder()
-		case "sublist3r":
-			installSublist3r()
 		case "jq":
 			installJq()
 		case "httpx":
 			installHttpx()
-		case "ffuf":
-			installFfuf()
 		}
 	} else {
 		fmt.Printf("%s is already installed.\n", tool)
@@ -58,24 +50,12 @@ func installSubfinder() {
 	runCommand("go", "install", "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
 }
 
-func installAmass() {
-	runCommand("go", "install", "github.com/owasp-amass/amass/v4/...@master")
-}
-
 func installAssetfinder() {
 	runCommand("go", "install", "github.com/tomnomnom/assetfinder@latest")
 }
 
-func installSublist3r() {
-	runCommand("pip3", "install", "sublist3r")
-}
-
 func installJq() {
 	runCommand("sudo", "apt", "install", "-y", "jq")
-}
-
-func installFfuf() {
-	runCommand("go", "install", "github.com/ffuf/ffuf/v2@latest")
 }
 
 func installHttpx() {
@@ -99,7 +79,6 @@ func runSubdomainEnum(domain string) {
 	createOutputDir()
 
 	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder_output.txt")
-	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass_output.txt")
 	runCommand("bash", "-c", fmt.Sprintf("assetfinder --subs-only %s > OUTPUT/assetfinder_output.txt", domain))
 
 	// Fetch subdomains from certificate transparency logs
@@ -109,11 +88,8 @@ func runSubdomainEnum(domain string) {
 	runCurl(fmt.Sprintf("https://api.certspotter.com/v1/issuances?domain=%s&include_subdomains=true&expand=dns_names", domain), "OUTPUT/certspotter_output.txt")
 	runCommand("bash", "-c", "jq -r '.[].dns_names[]' OUTPUT/certspotter_output.txt | sed 's/\\*\\.//g' | sort -u > OUTPUT/certspotter_subs.txt")
 
-	// Brute-force subdomains using ffuf
-	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", fmt.Sprintf("https://FUZZ.%s", domain), "-o", "OUTPUT/ffuf_output.txt")
-
 	// Combine all subdomains
-	runCommand("bash", "-c", "cat OUTPUT/*.txt | sort -u > OUTPUT/all_subdomains.txt")
+	runCommand("bash", "-c", "cat OUTPUT/subfinder_output.txt assetfinder_output.txt crt_subs.txt certspotter_subs.txt | sort -u > OUTPUT/all_subdomains.txt")
 
 	// Check for live subdomains using httpx
 	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -threads 100 -o OUTPUT/live_subdomains.txt")
@@ -145,14 +121,20 @@ func runCurl(url, outputFile string) {
 // Display banner
 func displayBanner() {
 	fmt.Println("\033[1;34m")
-	fmt.Println("  ██╗ ██████╗ ███╗   ██╗██╗ ██████╗███████╗██╗   ██╗██████╗ ")
-	fmt.Println("  ██║██╔═══██╗████╗  ██║██║██╔════╝██╔════╝██║   ██║██╔══██╗")
-	fmt.Println("  ██║██║   ██║██╔██╗ ██║██║██║     ███████╗██║   ██║██████╔╝")
-	fmt.Println("  ██║██║   ██║██║╚██╗██║██║██║     ╚════██║██║   ██║██╔══██╗")
-	fmt.Println("  ██║╚██████╔╝██║ ╚████║██║╚██████╗███████║╚██████╔╝██████╔╝")
-	fmt.Println("  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝ ╚═════╝ ╚═════╝ ")
+	fmt.Println("██╗ ██████╗ ███╗   ██╗██╗ ██████╗███████╗██╗   ██╗██████╗ ")
+	fmt.Println("██║██╔═══██╗████╗  ██║██║██╔════╝██╔════╝██║   ██║██╔══██╗")
+	fmt.Println("██║██║   ██║██╔██╗ ██║██║██║     ███████╗██║   ██║██████╔╝")
+	fmt.Println("██║██║   ██║██║╚██╗██║██║██║     ╚════██║██║   ██║██╔══██╗")
+	fmt.Println("██║╚██████╔╝██║ ╚████║██║╚██████╗███████║╚██████╔╝██████╔╝")
+	fmt.Println("╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝ ╚═════╝ ╚═════╝ ")
 	fmt.Println("\033[0m")
 	fmt.Println("\033[1;36mSubdomain Enumeration Script\033[0m")
+	fmt.Println("\033[1;36mUsage: ./subdomain_enum.sh <domain>\033[0m")
+	fmt.Println("\033[1;36mExample: ./subdomain_enum.sh example.com\033[0m")
+	fmt.Println("\033[1;36m----------------------------------------\033[0m")
+	fmt.Println("\033[1;36mOptions:\033[0m")
+	fmt.Println("\033[1;36m  -h, --help    Show this help message and exit\033[0m")
+	fmt.Println("\033[1;36m----------------------------------------\033[0m")
 }
 
 // Main function
