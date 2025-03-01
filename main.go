@@ -15,7 +15,7 @@ var tools = []string{
 	"sublist3r",
 	"jq",
 	"httpx",
-	"fuff",
+	"ffuf",
 }
 
 // Ensure OUTPUT directory exists
@@ -40,12 +40,14 @@ func installTool(tool string) {
 			installAmass()
 		case "assetfinder":
 			installAssetfinder()
+		case "sublist3r":
+			installSublist3r()
 		case "jq":
 			installJq()
 		case "httpx":
 			installHttpx()
 		case "ffuf":
-			installFuff()
+			installFfuf()
 		}
 	} else {
 		fmt.Printf("%s is already installed.\n", tool)
@@ -53,62 +55,90 @@ func installTool(tool string) {
 }
 
 func installSubfinder() {
-	cmd := exec.Command("go", "install", "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install subfinder:", err)
-	}
+	runCommand("go", "install", "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest")
 }
 
 func installAmass() {
-	cmd := exec.Command("go", "install", "github.com/owasp-amass/amass/v4/...@master")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install amass:", err)
-	}
+	runCommand("go", "install", "github.com/owasp-amass/amass/v4/...@master")
 }
 
 func installAssetfinder() {
-	cmd := exec.Command("go", "install", "github.com/tomnomnom/assetfinder@latest")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install assetfinder:", err)
-	}
+	runCommand("go", "install", "github.com/tomnomnom/assetfinder@latest")
+}
+
+func installSublist3r() {
+	runCommand("pip3", "install", "sublist3r")
 }
 
 func installJq() {
-	cmd := exec.Command("sudo", "apt", "install", "-y", "jq")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install jq:", err)
-	}
+	runCommand("sudo", "apt", "install", "-y", "jq")
 }
 
-func installFuff() {
-	cmd := exec.Command("go", "install", "github.com/ffuf/ffuf/v2@latest")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install fuff:", err)
-	}
+func installFfuf() {
+	runCommand("go", "install", "github.com/ffuf/ffuf/v2@latest")
 }
 
 func installHttpx() {
-	cmd := exec.Command("go", "install", "github.com/projectdiscovery/httpx/cmd/httpx@latest")
+	runCommand("go", "install", "github.com/projectdiscovery/httpx/cmd/httpx@latest")
+}
+
+// RunCommand executes a command and handles errors
+func runCommand(name string, args ...string) {
+	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err := cmd.Run()
+	if err := cmd.Run(); err != nil {
+		log.Fatalf("Failed to execute %s: %v\n", name, err)
+	}
+}
+
+// RunSubdomainEnum executes all enumeration tools
+func runSubdomainEnum(domain string) {
+	fmt.Printf("\033[1;36mStarting Subdomain Enumeration for %s...\033[0m\n", domain)
+
+	createOutputDir()
+
+	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder_output.txt")
+	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass_output.txt")
+	runCommand("bash", "-c", fmt.Sprintf("assetfinder --subs-only %s > OUTPUT/assetfinder_output.txt", domain))
+
+	// Fetch subdomains from certificate transparency logs
+	runCurl(fmt.Sprintf("https://crt.sh/?q=%%25.%s&output=json", domain), "OUTPUT/crt_output.txt")
+	runCommand("bash", "-c", "jq -r '.[].name_value' OUTPUT/crt_output.txt | sed 's/\\*\\.//g' | sort -u > OUTPUT/crt_subs.txt")
+
+	runCurl(fmt.Sprintf("https://api.certspotter.com/v1/issuances?domain=%s&include_subdomains=true&expand=dns_names", domain), "OUTPUT/certspotter_output.txt")
+	runCommand("bash", "-c", "jq -r '.[].dns_names[]' OUTPUT/certspotter_output.txt | sed 's/\\*\\.//g' | sort -u > OUTPUT/certspotter_subs.txt")
+
+	// Brute-force subdomains using ffuf
+	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", fmt.Sprintf("https://FUZZ.%s", domain), "-o", "OUTPUT/ffuf_output.txt")
+
+	// Combine all subdomains
+	runCommand("bash", "-c", "cat OUTPUT/*.txt | sort -u > OUTPUT/all_subdomains.txt")
+
+	// Check for live subdomains using httpx
+	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -threads 100 -o OUTPUT/live_subdomains.txt")
+}
+
+// runTool executes a tool with arguments
+func runTool(tool string, args ...string) {
+	cmd := exec.Command(tool, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Printf("Failed to run %s: %v", tool, err)
+	}
+}
+
+// runCurl fetches data from a URL and saves it to a file
+func runCurl(url, outputFile string) {
+	cmd := exec.Command("curl", "-s", url)
+	out, err := cmd.Output()
 	if err != nil {
-		log.Fatal("Failed to install httpx:", err)
+		log.Printf("Failed to fetch data from %s: %v", url, err)
+		return
+	}
+	if err := os.WriteFile(outputFile, out, 0644); err != nil {
+		log.Printf("Failed to write to %s: %v", outputFile, err)
 	}
 }
 
@@ -123,77 +153,13 @@ func displayBanner() {
 	fmt.Println("  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝ ╚═════╝ ╚═════╝ ")
 	fmt.Println("\033[0m")
 	fmt.Println("\033[1;36mSubdomain Enumeration Script\033[0m")
-	fmt.Println("\033[1;36mUsage: ./subdomain_enum.sh <domain>\033[0m")
-	fmt.Println("\033[1;36mExample: ./subdomain_enum.sh example.com\033[0m")
-	fmt.Println("\033[1;36m----------------------------------------\033[0m")
-	fmt.Println("\033[1;36mOptions:\033[0m")
-	fmt.Println("\033[1;36m  -h, --help    Show this help message and exit\033[0m")
-	fmt.Println("\033[1;36m----------------------------------------\033[0m")
 }
 
-// RunSubdomainEnum runs all the tools for subdomain enumeration
-func runSubdomainEnum(domain string) {
-	fmt.Printf("\033[1;36mStarting Subdomain Enumeration for %s...\033[0m\n", domain)
-
-	createOutputDir()
-
-	// Run all tools (example for one tool, replicate for all)
-	// Run subdomain enumeration tools
-	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder_output.txt")
-	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass_output.txt")
-	runTool("assetfinder", "--subs-only", domain, ">", "OUTPUT/assetfinder_output.txt")
-
-	// Fetch subdomains from certificate transparency logs
-	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "OUTPUT/crt_output.txt")
-	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "OUTPUT/certspotter_output.txt")
-
-	// Brute-force subdomains using massdns
-	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", "https://FUZZ."+domain, "-o", "OUTPUT/fuff_output.txt")
-
-	// Combine all subdomains into one file
-	runTool("sh", "-c", "cat OUTPUT/*.txt | sort -u > OUTPUT/all_subdomains.txt")
-
-	// Check for live subdomains using httpx
-	runTool("sh", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -threads 100 -o OUTPUT/live_subdomains.txt")
-
-}
-
-// runTool executes a tool with arguments
-func runTool(tool string, args ...string) {
-	cmd := exec.Command(tool, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Printf("Failed to run %s: %v", tool, err)
-	}
-}
-
-// runCurl runs a curl command
-func runCurl(url, outputFile string) {
-	cmd := exec.Command("curl", "-s", url)
-	out, err := cmd.Output()
-	if err != nil {
-		log.Printf("Failed to fetch data from %s: %v", url, err)
-		return
-	}
-	file, err := os.Create(outputFile)
-	if err != nil {
-		log.Printf("Failed to create file %s: %v", outputFile, err)
-		return
-	}
-	defer file.Close()
-	_, err = file.Write(out)
-	if err != nil {
-		log.Printf("Failed to write to %s: %v", outputFile, err)
-	}
-}
-
+// Main function
 func main() {
-
 	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		displayBanner() // Display the banner
-		os.Exit(0)      // Exit after displaying the banner
+		displayBanner()
+		os.Exit(0)
 	}
 
 	if len(os.Args) < 2 {
@@ -204,17 +170,14 @@ func main() {
 
 	domain := os.Args[1]
 
-	// Display banner and install tools
 	displayBanner()
 
-	// Check and install tools
 	for _, tool := range tools {
 		installTool(tool)
 	}
 
-	// Run Subdomain Enumeration
 	runSubdomainEnum(domain)
 
 	fmt.Println("\033[1;32mSubdomain Enumeration Completed!\033[0m")
-	fmt.Println("\033[1;32mResults saved in live_subdomains.txt\033[0m")
+	fmt.Println("\033[1;32mResults saved in OUTPUT/live_subdomains.txt\033[0m")
 }
