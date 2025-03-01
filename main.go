@@ -18,6 +18,16 @@ var tools = []string{
 	"fuff",
 }
 
+// Ensure OUTPUT directory exists
+func createOutputDir() {
+	if _, err := os.Stat("OUTPUT"); os.IsNotExist(err) {
+		err := os.Mkdir("OUTPUT", 0755)
+		if err != nil {
+			log.Fatal("Failed to create OUTPUT directory:", err)
+		}
+	}
+}
+
 // InstallTool checks if the tool is installed, and installs it if missing
 func installTool(tool string) {
 	_, err := exec.LookPath(tool)
@@ -125,24 +135,26 @@ func displayBanner() {
 func runSubdomainEnum(domain string) {
 	fmt.Printf("\033[1;36mStarting Subdomain Enumeration for %s...\033[0m\n", domain)
 
+	createOutputDir()
+
 	// Run all tools (example for one tool, replicate for all)
 	// Run subdomain enumeration tools
-	runTool("subfinder", "-d", domain, "-all", "-o", "subfinder.txt")
-	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "amass.txt")
-	runTool("assetfinder", "--subs-only", domain, ">", "assetfinder.txt")
+	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder.txt")
+	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "OUTPUT/amass.txt")
+	runTool("assetfinder", "--subs-only", domain, ">", "OUTPUT/assetfinder.txt")
 
 	// Fetch subdomains from certificate transparency logs
-	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "crt.txt")
-	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "certspotter.txt")
+	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "OUTPUT/crt.txt")
+	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "OUTPUT/certspotter.txt")
 
 	// Brute-force subdomains using massdns
-	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", "https://FUZZ."+domain, "-o", "fuff_output.txt")
+	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", "https://FUZZ."+domain, "-o", "OUTPUT/fuff_output.txt")
 
 	// Combine all subdomains into one file
-	runTool("sh", "-c", "cat amass.txt subfinder.txt assetfinder.txt crt.txt certspotter.txt fuff_output.txt | sort -u > all_subdomains.txt")
+	runTool("sh", "-c", "cat OUTPUT/*.txt | sort -u > OUTPUT/all_subdomains.txt")
 
 	// Check for live subdomains using httpx
-	runTool("sh", "-c", "cat all_subdomains.txt | httpx -silent -threads 100 -o live_subdomains.txt")
+	runTool("sh", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -threads 100 -o OUTPUT/live_subdomains.txt")
 
 }
 
