@@ -18,6 +18,7 @@ var tools = []string{
 	"massdns",
 	"altdns",
 	"httpx",
+	"fuff",
 }
 
 // InstallTool checks if the tool is installed, and installs it if missing
@@ -28,22 +29,16 @@ func installTool(tool string) {
 		switch tool {
 		case "subfinder":
 			installSubfinder()
-		case "findomain":
-			installFindomain()
 		case "amass":
 			installAmass()
 		case "assetfinder":
 			installAssetfinder()
-		case "sublist3r":
-			installSublist3r()
 		case "jq":
 			installJq()
-		case "massdns":
-			installMassdns()
-		case "altdns":
-			installAltdns()
 		case "httpx":
 			installHttpx()
+		case "ffuf":
+			installFuff()
 		}
 	} else {
 		fmt.Printf("%s is already installed.\n", tool)
@@ -57,16 +52,6 @@ func installSubfinder() {
 	err := cmd.Run()
 	if err != nil {
 		log.Fatal("Failed to install subfinder:", err)
-	}
-}
-
-func installFindomain() {
-	cmd := exec.Command("sudo", "apt", "install", "findomain")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install findomain:", err)
 	}
 }
 
@@ -90,16 +75,6 @@ func installAssetfinder() {
 	}
 }
 
-func installSublist3r() {
-	cmd := exec.Command("sudo", "apt", "install", "sublist3r")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install Sublist3r:", err)
-	}
-}
-
 func installJq() {
 	cmd := exec.Command("sudo", "apt", "install", "-y", "jq")
 	cmd.Stdout = os.Stdout
@@ -110,23 +85,13 @@ func installJq() {
 	}
 }
 
-func installMassdns() {
-	cmd := exec.Command("sudo", "apt", "install", "massdns")
+func installFuff() {
+	cmd := exec.Command("go", "install", "github.com/ffuf/ffuf/v2@latest")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
 	if err != nil {
-		log.Fatal("Failed to install massdns:", err)
-	}
-}
-
-func installAltdns() {
-	cmd := exec.Command("sudo", "apt", "install", "altdns")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal("Failed to install altdns:", err)
+		log.Fatal("Failed to install fuff:", err)
 	}
 }
 
@@ -166,26 +131,18 @@ func runSubdomainEnum(domain string) {
 	// Run all tools (example for one tool, replicate for all)
 	// Run subdomain enumeration tools
 	runTool("subfinder", "-d", domain, "-all", "-o", "subfinder.txt")
-	runTool("findomain", "-t", domain, "-u", "findomain.txt")
 	runTool("amass", "enum", "-active", "-brute", "-d", domain, "-o", "amass.txt")
 	runTool("assetfinder", "--subs-only", domain, ">", "assetfinder.txt")
-	runTool("sublist3r", "-d", domain, "-o", "sublist3r.txt")
 
 	// Fetch subdomains from certificate transparency logs
 	runCurl("https://crt.sh/?q=%25."+domain+"&output=json", "crt.txt")
 	runCurl("https://api.certspotter.com/v1/issuances?domain="+domain+"&include_subdomains=true&expand=dns_names", "certspotter.txt")
 
 	// Brute-force subdomains using massdns
-	runTool("sh", "-c", "cat /Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt | sed 's/$/."+domain+"/' | massdns -r /Users/narayanan/Documents/ionic/IonicSub/resource/resolvers.txt -t A -o S -w massdns_output.txt")
-	runTool("sh", "-c", "cat massdns_output.txt | awk '{print $1}' | sed 's/.$//' | sort -u > brute_forced_subdomains.txt")
+	runTool("ffuf", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt", "-u", "https://FUZZ."+domain, "-o", "fuff_output.txt")
 
 	// Combine all subdomains into one file
-	runTool("sh", "-c", "cat amass.txt subfinder.txt assetfinder.txt findomain.txt sublist3r.txt crt.txt certspotter.txt brute_forced_subdomains.txt | sort -u > all_subdomains.txt")
-
-	// Generate permutations using altdns
-	runTool("altdns", "-i", "all_subdomains.txt", "-o", "permutations.txt", "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/subdomains-top2million-281163.txt")
-	runTool("sh", "-c", "cat permutations.txt | massdns -r /Users/narayanan/Documents/ionic/IonicSub/resource/resolvers.txt -t A -o S -w permuted_subdomains.txt")
-	runTool("sh", "-c", "cat permuted_subdomains.txt | awk '{print $1}' | sed 's/.$//' | sort -u >> all_subdomains.txt")
+	runTool("sh", "-c", "cat amass.txt subfinder.txt assetfinder.txt crt.txt certspotter.txt fuff_output.txt | sort -u > all_subdomains.txt")
 
 	// Check for live subdomains using httpx
 	runTool("sh", "-c", "cat all_subdomains.txt | httpx -silent -threads 100 -o live_subdomains.txt")

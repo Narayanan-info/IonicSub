@@ -19,13 +19,11 @@ This is a Go-based tool designed to automate the process of subdomain enumeratio
 The following tools are required for this script to function but its automaticaly installed once you run the tool:
 
 - `subfinder`
-- `findomain`
 - `amass`
 - `assetfinder`
 - `sublist3r`
 - `jq`
-- `massdns`
-- `altdns`
+- `fuff`
 - `httpx`
 
 ## Installation
