@@ -11,7 +11,6 @@ import (
 var tools = []string{
 	"subfinder",
 	"assetfinder",
-	"sublist3r",
 	"jq",
 	"httpx",
 }
@@ -129,8 +128,8 @@ func displayBanner() {
 	fmt.Println("╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝ ╚═════╝ ╚═════╝ ")
 	fmt.Println("\033[0m")
 	fmt.Println("\033[1;36mSubdomain Enumeration Script\033[0m")
-	fmt.Println("\033[1;36mUsage: ./subdomain_enum.sh <domain>\033[0m")
-	fmt.Println("\033[1;36mExample: ./subdomain_enum.sh example.com\033[0m")
+	fmt.Println("\033[1;36mUsage: ./ionicsub <domain>\033[0m")
+	fmt.Println("\033[1;36mExample: ./ionicsub example.com\033[0m")
 	fmt.Println("\033[1;36m----------------------------------------\033[0m")
 	fmt.Println("\033[1;36mOptions:\033[0m")
 	fmt.Println("\033[1;36m  -h, --help    Show this help message and exit\033[0m")
