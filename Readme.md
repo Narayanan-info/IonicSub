@@ -19,10 +19,8 @@ This is a Go-based tool designed to automate the process of subdomain enumeratio
 The following tools are required for this script to function but its automaticaly installed once you run the tool:
 
 - `subfinder`
-- `amass`
 - `assetfinder`
 - `jq`
-- `fuff`
 - `httpx`
 
 ## Installation
@@ -63,11 +61,9 @@ To run the tool, simply execute the compiled binary with the target domain as an
 The tool generates the following output files:
 
 - `subfinder_output.txt`: Subdomains found by `subfinder`.
-- `amass_output.txt`: Subdomains found by `amass`.
 - `assetfinder_output.txt`: Subdomains found by `assetfinder`.
 - `crt_output.txt`: Subdomains found from certificate transparency logs.
 - `certspotter_output.txt`: Subdomains found from Cert Spotter API.
-- `fuff_output.txt`: Subdomain Fuzzing with 2 million wordlist.
 - `all_subdomains.txt`: Combined list of all subdomains found.
 - `live_subdomains.txt`: Live subdomains identified by `httpx`.
 
