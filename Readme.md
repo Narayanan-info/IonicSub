@@ -21,7 +21,6 @@ The following tools are required for this script to function but its automatical
 - `subfinder`
 - `amass`
 - `assetfinder`
-- `sublist3r`
 - `jq`
 - `fuff`
 - `httpx`
