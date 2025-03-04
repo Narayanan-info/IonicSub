@@ -102,7 +102,7 @@ func runSubdomainEnum(domain string) {
 	runCommand("bash", "-c", "cat OUTPUT/subfinder_output.txt assetfinder_output.txt crt_subs.txt certspotter_subs.txt fuff_output.txt | sort -u > OUTPUT/all_subdomains.txt")
 
 	// Run httpx with status filtering
-	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -mc 200,403,401,302,304 -o OUTPUT/httpx/all_status.txt")
+	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -mc 200,403,401,302,304,404,500,301 -o OUTPUT/httpx/all_status.txt")
 
 	runCommand("bash", "-c", "cat OUTPUT/httpx/all_status.txt | httpx -status-code -o OUTPUT/httpx/all-status-code.txt")
 
@@ -111,6 +111,9 @@ func runSubdomainEnum(domain string) {
 	runCommand("bash", "-c", "grep 401 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/401_domains.txt")
 	runCommand("bash", "-c", "grep 302 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/302_domains.txt")
 	runCommand("bash", "-c", "grep 304 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/304_domains.txt")
+	runCommand("bash", "-c", "grep 301 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/301_domains.txt")
+	runCommand("bash", "-c", "grep 404 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/404_domains.txt")
+	runCommand("bash", "-c", "grep 500 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/500_domains.txt")
 
 }
 
