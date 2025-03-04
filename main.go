@@ -13,14 +13,18 @@ var tools = []string{
 	"assetfinder",
 	"jq",
 	"httpx",
+	"fuff",
 }
 
-// Ensure OUTPUT directory exists
-func createOutputDir() {
-	if _, err := os.Stat("OUTPUT"); os.IsNotExist(err) {
-		err := os.Mkdir("OUTPUT", 0755)
-		if err != nil {
-			log.Fatal("Failed to create OUTPUT directory:", err)
+// Ensure OUTPUT and HTTPX directories exist
+func createOutputDirs() {
+	dirs := []string{"OUTPUT", "OUTPUT/httpx"}
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			err := os.Mkdir(dir, 0755)
+			if err != nil {
+				log.Fatal("Failed to create ", dir, " directory:", err)
+			}
 		}
 	}
 }
@@ -39,6 +43,8 @@ func installTool(tool string) {
 			installJq()
 		case "httpx":
 			installHttpx()
+		case "fuff":
+			installFuff()
 		}
 	} else {
 		fmt.Printf("%s is already installed.\n", tool)
@@ -61,6 +67,10 @@ func installHttpx() {
 	runCommand("go", "install", "github.com/projectdiscovery/httpx/cmd/httpx@latest")
 }
 
+func installFuff() {
+	runCommand("go", "install", "github.com/ffuf/ffuf/v2@latest")
+}
+
 // RunCommand executes a command and handles errors
 func runCommand(name string, args ...string) {
 	cmd := exec.Command(name, args...)
@@ -75,10 +85,11 @@ func runCommand(name string, args ...string) {
 func runSubdomainEnum(domain string) {
 	fmt.Printf("\033[1;36mStarting Subdomain Enumeration for %s...\033[0m\n", domain)
 
-	createOutputDir()
+	createOutputDirs()
 
 	runTool("subfinder", "-d", domain, "-all", "-o", "OUTPUT/subfinder_output.txt")
 	runCommand("bash", "-c", fmt.Sprintf("assetfinder --subs-only %s > OUTPUT/assetfinder_output.txt", domain))
+	runTool("ffuf", "-u", "https://FUZZ."+domain, "-w", "/Users/narayanan/Documents/ionic/IonicSub/resource/all-bug-bounty.txt", "-mc", "200", "-o", "OUTPUT/fuff_output.txt")
 
 	// Fetch subdomains from certificate transparency logs
 	runCurl(fmt.Sprintf("https://crt.sh/?q=%%25.%s&output=json", domain), "OUTPUT/crt_output.txt")
@@ -88,10 +99,11 @@ func runSubdomainEnum(domain string) {
 	runCommand("bash", "-c", "jq -r '.[].dns_names[]' OUTPUT/certspotter_output.txt | sed 's/\\*\\.//g' | sort -u > OUTPUT/certspotter_subs.txt")
 
 	// Combine all subdomains
-	runCommand("bash", "-c", "cat OUTPUT/subfinder_output.txt assetfinder_output.txt crt_subs.txt certspotter_subs.txt | sort -u > OUTPUT/all_subdomains.txt")
+	runCommand("bash", "-c", "cat OUTPUT/subfinder_output.txt assetfinder_output.txt crt_subs.txt certspotter_subs.txt fuff_output.txt | sort -u > OUTPUT/all_subdomains.txt")
 
-	// Check for live subdomains using httpx
-	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -threads 100 -o OUTPUT/live_subdomains.txt")
+	// Run httpx with status filtering
+	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -mc 200,403,401,302,304 -o OUTPUT/httpx/all_status.txt")
+
 }
 
 // runTool executes a tool with arguments
