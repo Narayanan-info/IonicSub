@@ -104,6 +104,14 @@ func runSubdomainEnum(domain string) {
 	// Run httpx with status filtering
 	runCommand("bash", "-c", "cat OUTPUT/all_subdomains.txt | httpx -silent -mc 200,403,401,302,304 -o OUTPUT/httpx/all_status.txt")
 
+	runCommand("bash", "-c", "cat OUTPUT/httpx/all_status.txt | httpx -status-code -o OUTPUT/httpx/all-status-code.txt")
+
+	runCommand("bash", "-c", "grep 200 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/200_domains.txt")
+	runCommand("bash", "-c", "grep 403 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/403_domains.txt")
+	runCommand("bash", "-c", "grep 401 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/401_domains.txt")
+	runCommand("bash", "-c", "grep 302 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/302_domains.txt")
+	runCommand("bash", "-c", "grep 304 OUTPUT/httpx/all-status-code.txt | awk '{print $1}' > OUTPUT/httpx/304_domains.txt")
+
 }
 
 // runTool executes a tool with arguments
